@@ -1,0 +1,59 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String
+  inviteCode   String   @unique
+  partnerId    String?  @unique
+  partner      User?    @relation("Couple", fields: [partnerId], references: [id])
+  partnerOf    User?    @relation("Couple")
+  createdAt    DateTime @default(now())
+
+  checklistItems ChecklistItem[]
+  mealLogs       MealLog[]
+  schedule       FitnessSchedule?
+}
+
+model ChecklistItem {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label     String
+  done      Boolean  @default(false)
+  weekStart DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model FitnessSchedule {
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workoutDays String   @default("")
+  runDays     String   @default("")
+  dailySteps  Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model MealLog {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mealType    String
+  category    String   @default("")
+  notes       String?
+  calories    Int?
+  logDate     DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

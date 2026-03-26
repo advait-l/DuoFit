@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx:*)",
+      "Bash(npm init:*)",
+      "Bash(sed -i 's/\"\"name\"\": \"\"DuoFit\"\"/\"\"name\"\": \"\"duofit\"\"/' package.json)",
+      "Bash(npm install:*)",
+      "Bash(npm run:*)",
+      "Bash(kill:*)",
+      "Bash(gh auth:*)",
+      "Bash(git --version)",
+      "Bash(curl -sS https://webi.sh/gh)",
+      "Bash(sh)",
+      "Bash(git init:*)",
+      "Bash(git add:*)"
+    ]
+  }
+}
