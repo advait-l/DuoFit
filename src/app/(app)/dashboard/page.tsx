@@ -10,21 +10,24 @@ async function getStreak(userId: string): Promise<number> {
   const thirtyDaysAgo = new Date(today);
   thirtyDaysAgo.setUTCDate(today.getUTCDate() - 30);
 
-  // Single query: all done items with a logDate in the last 30 days
+  // Fetch done items: prefer logDate, fall back to completedAt for older items
   const doneItems = await prisma.checklistItem.findMany({
     where: {
       userId,
       done: true,
-      logDate: { gte: getDayStart(thirtyDaysAgo) },
+      OR: [
+        { logDate: { gte: getDayStart(thirtyDaysAgo) } },
+        { logDate: null, completedAt: { gte: getDayStart(thirtyDaysAgo) } },
+      ],
     },
-    select: { logDate: true },
+    select: { logDate: true, completedAt: true },
   });
 
-  // Build a set of ISO date strings where at least one task was completed
+  // Use logDate if set, otherwise fall back to completedAt
   const doneDays = new Set(
     doneItems
-      .filter((i) => i.logDate !== null)
-      .map((i) => i.logDate!.toISOString().split("T")[0])
+      .map((i) => (i.logDate ?? i.completedAt)?.toISOString().split("T")[0])
+      .filter((d): d is string => !!d)
   );
 
   let streak = 0;
@@ -68,7 +71,7 @@ export default async function Dashboard() {
     prisma.fitnessSchedule.findUnique({ where: { userId: user.id } }),
   ]);
 
-  const myChecklist = allMyChecklist.filter((i) => isItemForToday(i.label, todayAbbrev));
+  const myChecklist = allMyChecklist.filter((i) => isItemForToday(i.label, todayAbbrev, i.logDate));
 
   let partnerData = null;
   if (user.partnerId) {
@@ -83,7 +86,7 @@ export default async function Dashboard() {
     ]);
     partnerData = {
       name: partner?.name ?? "Partner",
-      checklist: allPartnerChecklist.filter((i) => isItemForToday(i.label, todayAbbrev)),
+      checklist: allPartnerChecklist.filter((i) => isItemForToday(i.label, todayAbbrev, i.logDate)),
       meals: partnerMeals,
       streak: partnerStreak,
     };

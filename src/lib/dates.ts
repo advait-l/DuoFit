@@ -33,10 +33,18 @@ export function getTodayAbbrev(date: Date = new Date()): string {
   return DAY_ABBREVS[date.getUTCDay()];
 }
 
-/** Returns true if a checklist label belongs to today (or has no day prefix). */
-export function isItemForToday(label: string, todayAbbrev: string): boolean {
+/** Returns true if a checklist item belongs to today. */
+export function isItemForToday(label: string, todayAbbrev: string, logDate?: Date | null): boolean {
   const dayPrefixes = DAY_ABBREVS.map((d) => d + " –");
   const hasDayPrefix = dayPrefixes.some((p) => label.startsWith(p));
-  if (!hasDayPrefix) return true; // manually added items show every day
-  return label.startsWith(todayAbbrev + " –");
+  if (hasDayPrefix) {
+    // Scheduled item: filter by label day prefix
+    return label.startsWith(todayAbbrev + " –");
+  }
+  if (logDate) {
+    // Manual item with a logDate: only show on its assigned day
+    return DAY_ABBREVS[logDate.getUTCDay()] === todayAbbrev;
+  }
+  // Old item with no logDate: show every day (backwards compat)
+  return true;
 }
