@@ -17,7 +17,8 @@ async function getStreak(userId: string): Promise<number> {
       where: { userId, done: true, completedAt: { gte: start, lte: end } },
     });
     if (count > 0) streak++;
-    else break;
+    else if (i > 0) break;
+    // if i === 0 (today) and count === 0, the day isn't over — don't break
   }
   return streak;
 }
