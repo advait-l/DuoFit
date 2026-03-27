@@ -11,12 +11,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!meal) return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (meal.userId !== session.sub) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const { category, notes } = await req.json();
+  const { category, notes, imageUrl } = await req.json();
   const updated = await prisma.mealLog.update({
     where: { id },
     data: {
       ...(category !== undefined && { category }),
       ...(notes !== undefined && { notes: notes?.trim() || null }),
+      ...(imageUrl !== undefined && { imageUrl: imageUrl || null }),
     },
   });
 

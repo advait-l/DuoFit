@@ -11,7 +11,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!item) return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (item.userId !== session.sub) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-  const { done, label } = await req.json();
+  const { done, label, imageUrl } = await req.json();
   const updated = await prisma.checklistItem.update({
     where: { id },
     data: {
@@ -20,6 +20,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         completedAt: done ? new Date() : null,
       }),
       ...(label !== undefined && { label: label.trim() }),
+      ...(imageUrl !== undefined && { imageUrl: imageUrl || null }),
     },
   });
 

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { MealLogDTO, MEAL_CATEGORIES } from "@/types";
 import { Badge } from "@/components/ui/Badge";
+import ImageUpload from "@/components/ui/ImageUpload";
 
 interface Props {
   meal: MealLogDTO;
@@ -24,6 +25,7 @@ export default function MealEntry({ meal, readOnly, onDelete, onUpdate }: Props)
   const [category, setCategory] = useState(meal.category);
   const [notes, setNotes] = useState(meal.notes ?? "");
   const [saving, setSaving] = useState(false);
+  const [imageUrl, setImageUrl] = useState<string | null>(meal.imageUrl ?? null);
 
   const catMeta = MEAL_CATEGORIES.find((c) => c.value === meal.category);
 
@@ -49,6 +51,26 @@ export default function MealEntry({ meal, readOnly, onDelete, onUpdate }: Props)
   async function handleDelete() {
     const res = await fetch(`/api/meal-log/${meal.id}`, { method: "DELETE" });
     if (res.ok) onDelete?.(meal.id);
+  }
+
+  async function handleImageUpload(url: string) {
+    setImageUrl(url);
+    const res = await fetch(`/api/meal-log/${meal.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ imageUrl: url }),
+    });
+    if (res.ok) onUpdate?.({ ...meal, imageUrl: url });
+  }
+
+  async function handleImageRemove() {
+    setImageUrl(null);
+    const res = await fetch(`/api/meal-log/${meal.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ imageUrl: null }),
+    });
+    if (res.ok) onUpdate?.({ ...meal, imageUrl: null });
   }
 
   if (editing) {
@@ -89,36 +111,44 @@ export default function MealEntry({ meal, readOnly, onDelete, onUpdate }: Props)
   }
 
   return (
-    <div className="flex items-start justify-between gap-2 group py-1 rounded transition-colors">
-      <div className="flex-1 min-w-0">
-        <Badge variant={CATEGORY_VARIANTS[meal.category] || "secondary"} className="text-xs">
-          {catMeta ? `${catMeta.emoji} ${catMeta.label}` : meal.category}
-        </Badge>
-        {meal.notes && (
-          <p className="text-xs text-muted-foreground mt-0.5 truncate">{meal.notes}</p>
+    <div className="py-1 rounded transition-colors group">
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex-1 min-w-0">
+          <Badge variant={CATEGORY_VARIANTS[meal.category] || "secondary"} className="text-xs">
+            {catMeta ? `${catMeta.emoji} ${catMeta.label}` : meal.category}
+          </Badge>
+          {meal.notes && (
+            <p className="text-xs text-muted-foreground mt-0.5 truncate">{meal.notes}</p>
+          )}
+        </div>
+        {!readOnly && (
+          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button
+              onClick={() => setEditing(true)}
+              className="text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+            <button
+              onClick={handleDelete}
+              className="text-muted-foreground hover:text-destructive transition-colors"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+          </div>
         )}
       </div>
-      {!readOnly && (
-        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button 
-            onClick={() => setEditing(true)} 
-            className="text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" strokeLinecap="round" strokeLinejoin="round"/>
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </button>
-          <button 
-            onClick={handleDelete} 
-            className="text-muted-foreground hover:text-destructive transition-colors"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </button>
-        </div>
-      )}
+      <ImageUpload
+        imageUrl={imageUrl}
+        onUpload={handleImageUpload}
+        onRemove={handleImageRemove}
+        readOnly={readOnly}
+      />
     </div>
   );
 }

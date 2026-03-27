@@ -23,6 +23,7 @@ export interface ChecklistItemDTO {
   weekStart: string;
   userId: string;
   createdAt: string;
+  imageUrl?: string | null;
 }
 
 export interface MealLogDTO {
@@ -34,6 +35,7 @@ export interface MealLogDTO {
   logDate: string;
   userId: string;
   createdAt: string;
+  imageUrl?: string | null;
 }
 
 export type MealCategory = "homecooked" | "restaurant" | "takeout" | "fast-food" | "skipped";

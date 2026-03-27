@@ -4,6 +4,7 @@ import { useState } from "react";
 import { MealLog } from "@/generated/prisma";
 import { MEAL_CATEGORIES, MealCategory } from "@/types";
 import { Badge } from "@/components/ui/Badge";
+import ImageUpload from "@/components/ui/ImageUpload";
 
 const MEAL_META: Record<string, { label: string; emoji: string }> = {
   breakfast: { label: "Breakfast", emoji: "🌅" },
@@ -34,6 +35,7 @@ export default function MealRow({ mealType, entry, readOnly, today, onAdd, onUpd
   const [category, setCategory] = useState<MealCategory | "">((entry?.category as MealCategory) ?? "");
   const [notes, setNotes] = useState(entry?.notes ?? "");
   const [saving, setSaving] = useState(false);
+  const [imageUrl, setImageUrl] = useState<string | null>((entry?.imageUrl as string | null) ?? null);
 
   const meta = MEAL_META[mealType] ?? { label: mealType, emoji: "🍴" };
   const catMeta = MEAL_CATEGORIES.find((c) => c.value === (entry?.category || category));
@@ -77,20 +79,50 @@ export default function MealRow({ mealType, entry, readOnly, today, onAdd, onUpd
       onDelete(entry.id);
       setCategory("");
       setNotes("");
+      setImageUrl(null);
     }
+  }
+
+  async function handleImageUpload(url: string) {
+    if (!entry) return;
+    setImageUrl(url);
+    const res = await fetch(`/api/meal-log/${entry.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ imageUrl: url }),
+    });
+    if (res.ok) onUpdate(await res.json());
+  }
+
+  async function handleImageRemove() {
+    if (!entry) return;
+    setImageUrl(null);
+    const res = await fetch(`/api/meal-log/${entry.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ imageUrl: null }),
+    });
+    if (res.ok) onUpdate(await res.json());
   }
 
   if (readOnly) {
     return (
-      <div className="flex items-center gap-2 py-1.5">
-        <span className="text-sm w-5 text-center">{meta.emoji}</span>
-        <span className="text-xs text-muted-foreground w-14 shrink-0">{meta.label}</span>
-        {entry ? (
-          <Badge variant={CATEGORY_VARIANTS[entry.category] || "secondary"} className="text-xs">
-            {catMeta?.emoji} {catMeta?.label ?? entry.category}
-          </Badge>
-        ) : (
-          <span className="text-xs text-muted-foreground/50 italic">—</span>
+      <div className="py-1.5">
+        <div className="flex items-center gap-2">
+          <span className="text-sm w-5 text-center">{meta.emoji}</span>
+          <span className="text-xs text-muted-foreground w-14 shrink-0">{meta.label}</span>
+          {entry ? (
+            <Badge variant={CATEGORY_VARIANTS[entry.category] || "secondary"} className="text-xs">
+              {catMeta?.emoji} {catMeta?.label ?? entry.category}
+            </Badge>
+          ) : (
+            <span className="text-xs text-muted-foreground/50 italic">—</span>
+          )}
+        </div>
+        {entry && (
+          <div className="ml-7">
+            <ImageUpload imageUrl={imageUrl} onUpload={() => {}} onRemove={() => {}} readOnly />
+          </div>
         )}
       </div>
     );
@@ -98,30 +130,35 @@ export default function MealRow({ mealType, entry, readOnly, today, onAdd, onUpd
 
   if (entry && !open) {
     return (
-      <div className="flex items-center gap-2 py-1.5 group">
-        <span className="text-sm w-5 text-center">{meta.emoji}</span>
-        <span className="text-xs text-muted-foreground w-14 shrink-0">{meta.label}</span>
-        <Badge variant={CATEGORY_VARIANTS[entry.category] || "secondary"} className="text-xs flex-1">
-          {catMeta?.emoji} {catMeta?.label ?? entry.category}
-        </Badge>
-        {entry.notes && (
-          <span className="text-xs text-muted-foreground truncate max-w-[60px]" title={entry.notes}>
-            {entry.notes}
-          </span>
-        )}
-        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-          <button 
-            onClick={() => { setCategory(entry.category as MealCategory); setNotes(entry.notes ?? ""); setOpen(true); }} 
-            className="text-muted-foreground hover:text-foreground text-xs transition-colors"
-          >
-            ✏️
-          </button>
-          <button 
-            onClick={handleDelete} 
-            className="text-muted-foreground hover:text-destructive text-xs transition-colors"
-          >
-            ✕
-          </button>
+      <div className="py-1.5 group">
+        <div className="flex items-center gap-2">
+          <span className="text-sm w-5 text-center">{meta.emoji}</span>
+          <span className="text-xs text-muted-foreground w-14 shrink-0">{meta.label}</span>
+          <Badge variant={CATEGORY_VARIANTS[entry.category] || "secondary"} className="text-xs flex-1">
+            {catMeta?.emoji} {catMeta?.label ?? entry.category}
+          </Badge>
+          {entry.notes && (
+            <span className="text-xs text-muted-foreground truncate max-w-[60px]" title={entry.notes}>
+              {entry.notes}
+            </span>
+          )}
+          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+            <button
+              onClick={() => { setCategory(entry.category as MealCategory); setNotes(entry.notes ?? ""); setOpen(true); }}
+              className="text-muted-foreground hover:text-foreground text-xs transition-colors"
+            >
+              ✏️
+            </button>
+            <button
+              onClick={handleDelete}
+              className="text-muted-foreground hover:text-destructive text-xs transition-colors"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+        <div className="ml-7">
+          <ImageUpload imageUrl={imageUrl} onUpload={handleImageUpload} onRemove={handleImageRemove} />
         </div>
       </div>
     );

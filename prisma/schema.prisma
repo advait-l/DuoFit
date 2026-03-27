@@ -34,6 +34,7 @@ model ChecklistItem {
   weekStart   DateTime
   logDate     DateTime?
   completedAt DateTime?
+  imageUrl    String?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 }
@@ -58,6 +59,7 @@ model MealLog {
   notes       String?
   calories    Int?
   logDate     DateTime
+  imageUrl    String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
