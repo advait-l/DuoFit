@@ -27,13 +27,14 @@ export default function MealEntry({ meal, readOnly, onDelete, onUpdate }: Props)
 
   const catMeta = MEAL_CATEGORIES.find((c) => c.value === meal.category);
 
-  async function handleSave() {
+  async function handleSave(selectedCategory: string) {
     setSaving(true);
+    setCategory(selectedCategory);
     try {
       const res = await fetch(`/api/meal-log/${meal.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ category, notes: notes || null }),
+        body: JSON.stringify({ category: selectedCategory, notes: notes || null }),
       });
       if (res.ok) {
         const updated = await res.json();
@@ -53,15 +54,6 @@ export default function MealEntry({ meal, readOnly, onDelete, onUpdate }: Props)
   if (editing) {
     return (
       <div className="bg-muted/50 rounded-lg p-2.5 space-y-2">
-        <select
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-          className="w-full text-xs border border-input bg-background rounded-lg px-2.5 py-1.5 outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
-        >
-          {MEAL_CATEGORIES.map((c) => (
-            <option key={c.value} value={c.value}>{c.emoji} {c.label}</option>
-          ))}
-        </select>
         <input
           type="text"
           value={notes}
@@ -69,21 +61,29 @@ export default function MealEntry({ meal, readOnly, onDelete, onUpdate }: Props)
           className="w-full text-xs border border-input bg-background rounded-lg px-2.5 py-1.5 outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100"
           placeholder="Notes (optional)"
         />
-        <div className="flex gap-2">
-          <button 
-            onClick={handleSave} 
-            disabled={saving} 
-            className="flex-1 text-xs bg-brand-500 text-white rounded-lg py-1.5 hover:bg-brand-600 disabled:opacity-50 transition-colors"
-          >
-            {saving ? "Saving..." : "Save"}
-          </button>
-          <button 
-            onClick={() => setEditing(false)} 
-            className="flex-1 text-xs border border-border rounded-lg py-1.5 hover:bg-muted transition-colors"
-          >
-            Cancel
-          </button>
+        <div className="flex flex-wrap gap-1">
+          {MEAL_CATEGORIES.map((c) => (
+            <button
+              key={c.value}
+              type="button"
+              disabled={saving}
+              onClick={() => handleSave(c.value)}
+              className={`text-xs px-2.5 py-1 rounded-full border transition-all duration-200 disabled:opacity-50 ${
+                category === c.value
+                  ? "border-brand-400 bg-brand-50 text-brand-700 font-medium shadow-sm"
+                  : "border-border text-muted-foreground hover:border-brand-300 hover:bg-muted"
+              }`}
+            >
+              {saving && category === c.value ? "…" : `${c.emoji} ${c.label}`}
+            </button>
+          ))}
         </div>
+        <button
+          onClick={() => setEditing(false)}
+          className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+        >
+          Cancel
+        </button>
       </div>
     );
   }

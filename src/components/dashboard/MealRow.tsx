@@ -38,15 +38,15 @@ export default function MealRow({ mealType, entry, readOnly, today, onAdd, onUpd
   const meta = MEAL_META[mealType] ?? { label: mealType, emoji: "🍴" };
   const catMeta = MEAL_CATEGORIES.find((c) => c.value === (entry?.category || category));
 
-  async function handleSave() {
-    if (!category) return;
+  async function handleSave(selectedCategory: MealCategory) {
     setSaving(true);
+    setCategory(selectedCategory);
     try {
       if (entry) {
         const res = await fetch(`/api/meal-log/${entry.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ category, notes: notes || null }),
+          body: JSON.stringify({ category: selectedCategory, notes: notes || null }),
         });
         if (res.ok) {
           const updated = await res.json();
@@ -57,7 +57,7 @@ export default function MealRow({ mealType, entry, readOnly, today, onAdd, onUpd
         const res = await fetch("/api/meal-log", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ mealType, category, notes: notes || null, logDate: today }),
+          body: JSON.stringify({ mealType, category: selectedCategory, notes: notes || null, logDate: today }),
         });
         if (res.ok) {
           const created = await res.json();
@@ -140,22 +140,6 @@ export default function MealRow({ mealType, entry, readOnly, today, onAdd, onUpd
           )}
         </div>
         <div className="ml-7 space-y-2">
-          <div className="flex flex-wrap gap-1">
-            {MEAL_CATEGORIES.map((c) => (
-              <button
-                key={c.value}
-                type="button"
-                onClick={() => setCategory(c.value)}
-                className={`text-xs px-2.5 py-1 rounded-full border transition-all duration-200 ${
-                  category === c.value
-                    ? "border-brand-400 bg-brand-50 text-brand-700 font-medium shadow-sm"
-                    : "border-border text-muted-foreground hover:border-brand-300 hover:bg-muted"
-                }`}
-              >
-                {c.emoji} {c.label}
-              </button>
-            ))}
-          </div>
           <input
             type="text"
             placeholder="Add a note… (optional)"
@@ -163,13 +147,23 @@ export default function MealRow({ mealType, entry, readOnly, today, onAdd, onUpd
             onChange={(e) => setNotes(e.target.value)}
             className="w-full text-xs border border-input bg-background rounded-lg px-2.5 py-1.5 outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100 transition-all duration-200"
           />
-          <button
-            onClick={handleSave}
-            disabled={!category || saving}
-            className="text-xs bg-brand-500 text-white px-4 py-1.5 rounded-lg font-medium hover:bg-brand-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow"
-          >
-            {saving ? "Saving…" : "Save"}
-          </button>
+          <div className="flex flex-wrap gap-1">
+            {MEAL_CATEGORIES.map((c) => (
+              <button
+                key={c.value}
+                type="button"
+                disabled={saving}
+                onClick={() => handleSave(c.value)}
+                className={`text-xs px-2.5 py-1 rounded-full border transition-all duration-200 disabled:opacity-50 ${
+                  category === c.value
+                    ? "border-brand-400 bg-brand-50 text-brand-700 font-medium shadow-sm"
+                    : "border-border text-muted-foreground hover:border-brand-300 hover:bg-muted"
+                }`}
+              >
+                {saving && category === c.value ? "…" : `${c.emoji} ${c.label}`}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     );
