@@ -4,8 +4,11 @@ import { useState, useRef } from "react";
 import { ChecklistItemDTO } from "@/types";
 import ImageUpload from "@/components/ui/ImageUpload";
 
+const DAY_PREFIXES_REGEX = /^(Sun|Mon|Tue|Wed|Thu|Fri|Sat)\s*[–—-]\s*/;
+
 interface Props {
   item: ChecklistItemDTO;
+  originalItem?: ChecklistItemDTO;
   readOnly: boolean;
   accent: "brand" | "partner";
   onToggle?: (id: string, done: boolean) => void;
@@ -13,25 +16,26 @@ interface Props {
   onUpdate?: (item: ChecklistItemDTO) => void;
 }
 
-export default function ChecklistItemRow({ item, readOnly, accent, onToggle, onDelete, onUpdate }: Props) {
+export default function ChecklistItemRow({ item, originalItem, readOnly, accent, onToggle, onDelete, onUpdate }: Props) {
   const [localDone, setLocalDone] = useState(item.done);
   const [deleting, setDeleting] = useState(false);
   const [editing, setEditing] = useState(false);
   const [editLabel, setEditLabel] = useState(item.label);
   const [imageUrl, setImageUrl] = useState<string | null>(item.imageUrl ?? null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const effectiveItem = originalItem || item;
 
   async function handleToggle() {
     const next = !localDone;
     setLocalDone(next);
     try {
-      const res = await fetch(`/api/checklist/${item.id}`, {
+      const res = await fetch(`/api/checklist/${effectiveItem.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ done: next }),
       });
       if (!res.ok) setLocalDone(localDone);
-      else onToggle?.(item.id, next);
+      else onToggle?.(effectiveItem.id, next);
     } catch {
       setLocalDone(localDone);
     }
@@ -40,8 +44,8 @@ export default function ChecklistItemRow({ item, readOnly, accent, onToggle, onD
   async function handleDelete() {
     setDeleting(true);
     try {
-      const res = await fetch(`/api/checklist/${item.id}`, { method: "DELETE" });
-      if (res.ok) onDelete?.(item.id);
+      const res = await fetch(`/api/checklist/${effectiveItem.id}`, { method: "DELETE" });
+      if (res.ok) onDelete?.(effectiveItem.id);
     } finally {
       setDeleting(false);
     }
@@ -55,19 +59,21 @@ export default function ChecklistItemRow({ item, readOnly, accent, onToggle, onD
 
   async function commitEdit() {
     const trimmed = editLabel.trim();
-    if (!trimmed || trimmed === item.label) {
+    if (!trimmed) {
       setEditing(false);
       setEditLabel(item.label);
       return;
     }
-    const res = await fetch(`/api/checklist/${item.id}`, {
+    const prefixMatch = effectiveItem.label.match(DAY_PREFIXES_REGEX);
+    const fullLabel = prefixMatch ? `${prefixMatch[1]} – ${trimmed}` : trimmed;
+    const res = await fetch(`/api/checklist/${effectiveItem.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ label: trimmed }),
+      body: JSON.stringify({ label: fullLabel }),
     });
     if (res.ok) {
       const updated = await res.json();
-      onUpdate?.({ ...item, label: updated.label });
+      onUpdate?.({ ...effectiveItem, label: updated.label });
     }
     setEditing(false);
   }
@@ -82,22 +88,22 @@ export default function ChecklistItemRow({ item, readOnly, accent, onToggle, onD
 
   async function handleImageUpload(url: string) {
     setImageUrl(url);
-    await fetch(`/api/checklist/${item.id}`, {
+    await fetch(`/api/checklist/${effectiveItem.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ imageUrl: url }),
     });
-    onUpdate?.({ ...item, imageUrl: url });
+    onUpdate?.({ ...effectiveItem, imageUrl: url });
   }
 
   async function handleImageRemove() {
     setImageUrl(null);
-    await fetch(`/api/checklist/${item.id}`, {
+    await fetch(`/api/checklist/${effectiveItem.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ imageUrl: null }),
     });
-    onUpdate?.({ ...item, imageUrl: null });
+    onUpdate?.({ ...effectiveItem, imageUrl: null });
   }
 
   const doneClass = accent === "brand"
@@ -138,8 +144,18 @@ export default function ChecklistItemRow({ item, readOnly, accent, onToggle, onD
           </span>
         )}
 
+        <div className="shrink-0">
+          <ImageUpload
+            imageUrl={imageUrl}
+            onUpload={handleImageUpload}
+            onRemove={handleImageRemove}
+            readOnly={readOnly}
+            inline
+          />
+        </div>
+
         {!readOnly && !editing && (
-          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
+          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all shrink-0">
             <button
               onClick={startEdit}
               className="text-muted-foreground hover:text-foreground text-xs transition-colors"
@@ -148,24 +164,15 @@ export default function ChecklistItemRow({ item, readOnly, accent, onToggle, onD
               ✏️
             </button>
             <button
-              onClick={handleDelete}
+              onClick={localDone ? handleToggle : handleDelete}
               disabled={deleting}
               className="text-muted-foreground hover:text-destructive text-xs transition-colors disabled:opacity-50"
-              aria-label="Delete item"
+              aria-label={localDone ? "Uncheck item" : "Delete item"}
             >
               ✕
             </button>
           </div>
         )}
-      </div>
-
-      <div className="ml-8">
-        <ImageUpload
-          imageUrl={imageUrl}
-          onUpload={handleImageUpload}
-          onRemove={handleImageRemove}
-          readOnly={readOnly}
-        />
       </div>
     </div>
   );

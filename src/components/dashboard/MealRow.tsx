@@ -3,21 +3,14 @@
 import { useState } from "react";
 import { MealLog } from "@/generated/prisma";
 import { MEAL_CATEGORIES, MealCategory } from "@/types";
-import { Badge } from "@/components/ui/Badge";
 import ImageUpload from "@/components/ui/ImageUpload";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/Dropdown";
+import { ChevronDown } from "lucide-react";
 
 const MEAL_META: Record<string, { label: string; emoji: string }> = {
   breakfast: { label: "Breakfast", emoji: "🌅" },
   lunch: { label: "Lunch", emoji: "☀️" },
   dinner: { label: "Dinner", emoji: "🌙" },
-};
-
-const CATEGORY_VARIANTS: Record<string, "success" | "brand" | "partner" | "warning" | "secondary"> = {
-  homecooked: "success",
-  restaurant: "brand",
-  takeout: "partner",
-  "fast-food": "warning",
-  skipped: "secondary",
 };
 
 interface Props {
@@ -31,56 +24,42 @@ interface Props {
 }
 
 export default function MealRow({ mealType, entry, readOnly, today, onAdd, onUpdate, onDelete }: Props) {
-  const [open, setOpen] = useState(false);
-  const [category, setCategory] = useState<MealCategory | "">((entry?.category as MealCategory) ?? "");
-  const [notes, setNotes] = useState(entry?.notes ?? "");
-  const [saving, setSaving] = useState(false);
   const [imageUrl, setImageUrl] = useState<string | null>((entry?.imageUrl as string | null) ?? null);
+  const [showActions, setShowActions] = useState(false);
 
   const meta = MEAL_META[mealType] ?? { label: mealType, emoji: "🍴" };
-  const catMeta = MEAL_CATEGORIES.find((c) => c.value === (entry?.category || category));
+  const catMeta = MEAL_CATEGORIES.find((c) => c.value === entry?.category);
 
-  async function handleSave(selectedCategory: MealCategory) {
-    setSaving(true);
-    setCategory(selectedCategory);
+  async function handleSelectCategory(category: MealCategory) {
     try {
       if (entry) {
         const res = await fetch(`/api/meal-log/${entry.id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ category: selectedCategory, notes: notes || null }),
+          body: JSON.stringify({ category }),
         });
         if (res.ok) {
           const updated = await res.json();
           onUpdate(updated);
-          setOpen(false);
         }
       } else {
         const res = await fetch("/api/meal-log", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ mealType, category: selectedCategory, notes: notes || null, logDate: today }),
+          body: JSON.stringify({ mealType, category, logDate: today }),
         });
         if (res.ok) {
           const created = await res.json();
           onAdd(created);
-          setOpen(false);
         }
       }
-    } finally {
-      setSaving(false);
-    }
+    } catch {}
   }
 
   async function handleDelete() {
     if (!entry) return;
-    const res = await fetch(`/api/meal-log/${entry.id}`, { method: "DELETE" });
-    if (res.ok) {
-      onDelete(entry.id);
-      setCategory("");
-      setNotes("");
-      setImageUrl(null);
-    }
+    await fetch(`/api/meal-log/${entry.id}`, { method: "DELETE" });
+    onDelete(entry.id);
   }
 
   async function handleImageUpload(url: string) {
@@ -105,106 +84,82 @@ export default function MealRow({ mealType, entry, readOnly, today, onAdd, onUpd
     if (res.ok) onUpdate(await res.json());
   }
 
-  if (readOnly) {
-    return (
-      <div className="py-1.5">
+  const hasEntry = !!entry;
+
+  return (
+    <div
+      className="rounded-md p-2 mb-2 bg-muted shadow-sm border-t border-white/10 border-b border-black/5"
+      onMouseEnter={() => setShowActions(true)}
+      onMouseLeave={() => setShowActions(false)}
+    >
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-sm w-5 text-center">{meta.emoji}</span>
-          <span className="text-xs text-muted-foreground w-14 shrink-0">{meta.label}</span>
-          {entry ? (
-            <Badge variant={CATEGORY_VARIANTS[entry.category] || "secondary"} className="text-xs">
-              {catMeta?.emoji} {catMeta?.label ?? entry.category}
-            </Badge>
-          ) : (
-            <span className="text-xs text-muted-foreground/50 italic">—</span>
+          <span className="text-sm w-5 text-center shrink-0">{meta.emoji}</span>
+          <span className="text-xs font-medium text-foreground">{meta.label}</span>
+          {imageUrl && (
+            <div className="shrink-0">
+              <ImageUpload imageUrl={imageUrl} onUpload={handleImageUpload} onRemove={handleImageRemove} readOnly inline />
+            </div>
           )}
         </div>
-        {entry && (
-          <div className="ml-7">
-            <ImageUpload imageUrl={imageUrl} onUpload={() => {}} onRemove={() => {}} readOnly />
-          </div>
+
+        {readOnly ? (
+          <span
+            className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${
+              entry
+                ? "bg-muted text-muted-foreground"
+                : "bg-muted/50 text-muted-foreground/50 italic"
+            }`}
+          >
+            {catMeta ? `${catMeta.emoji} ${catMeta.label}` : "—"}
+          </span>
+        ) : (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-lg border bg-background hover:bg-muted transition-colors">
+                {catMeta ? (
+                  <>
+                    <span>{catMeta.emoji}</span>
+                    <span>{catMeta.label}</span>
+                  </>
+                ) : (
+                  <span className="italic text-muted-foreground">Not logged</span>
+                )}
+                <ChevronDown className="h-3 w-3" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {MEAL_CATEGORIES.map((c) => (
+                <DropdownMenuItem
+                  key={c.value}
+                  onClick={() => handleSelectCategory(c.value)}
+                  className={entry?.category === c.value ? "bg-muted" : ""}
+                >
+                  <span>{c.emoji}</span>
+                  <span>{c.label}</span>
+                  {entry?.category === c.value && <span className="ml-auto text-brand-600">✓</span>}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
       </div>
-    );
-  }
 
-  if (entry && !open) {
-    return (
-      <div className="py-1.5 group">
-        <div className="flex items-center gap-2">
-          <span className="text-sm w-5 text-center">{meta.emoji}</span>
-          <span className="text-xs text-muted-foreground w-14 shrink-0">{meta.label}</span>
-          <Badge variant={CATEGORY_VARIANTS[entry.category] || "secondary"} className="text-xs flex-1">
-            {catMeta?.emoji} {catMeta?.label ?? entry.category}
-          </Badge>
-          {entry.notes && (
-            <span className="text-xs text-muted-foreground truncate max-w-[60px]" title={entry.notes}>
-              {entry.notes}
-            </span>
+      {!readOnly && hasEntry && (showActions || imageUrl) && (
+        <div className="flex items-center gap-2 mt-1 ml-7">
+          {!imageUrl && (
+            <div className="shrink-0">
+              <ImageUpload imageUrl={null} onUpload={handleImageUpload} onRemove={handleImageRemove} inline />
+            </div>
           )}
-          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-            <button
-              onClick={() => { setCategory(entry.category as MealCategory); setNotes(entry.notes ?? ""); setOpen(true); }}
-              className="text-muted-foreground hover:text-foreground text-xs transition-colors"
-            >
-              ✏️
-            </button>
-            <button
-              onClick={handleDelete}
-              className="text-muted-foreground hover:text-destructive text-xs transition-colors"
-            >
-              ✕
-            </button>
-          </div>
+          <button
+            onClick={handleDelete}
+            className="text-[10px] text-muted-foreground hover:text-destructive transition-colors"
+          >
+            Clear
+          </button>
         </div>
-        <div className="ml-7">
-          <ImageUpload imageUrl={imageUrl} onUpload={handleImageUpload} onRemove={handleImageRemove} />
-        </div>
-      </div>
-    );
-  }
-
-  if (open || !entry) {
-    return (
-      <div className="py-1.5">
-        <div className="flex items-center gap-2 mb-1.5">
-          <span className="text-sm w-5 text-center">{meta.emoji}</span>
-          <span className="text-xs font-medium text-foreground">{meta.label}</span>
-          {open && (
-            <button onClick={() => setOpen(false)} className="ml-auto text-muted-foreground hover:text-foreground text-xs transition-colors">
-              ✕
-            </button>
-          )}
-        </div>
-        <div className="ml-7 space-y-2">
-          <input
-            type="text"
-            placeholder="Add a note… (optional)"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            className="w-full text-xs border border-input bg-background rounded-lg px-2.5 py-1.5 outline-none focus:border-brand-400 focus:ring-2 focus:ring-brand-100 transition-all duration-200"
-          />
-          <div className="flex flex-wrap gap-1">
-            {MEAL_CATEGORIES.map((c) => (
-              <button
-                key={c.value}
-                type="button"
-                disabled={saving}
-                onClick={() => handleSave(c.value)}
-                className={`text-xs px-2.5 py-1 rounded-full border transition-all duration-200 disabled:opacity-50 ${
-                  category === c.value
-                    ? "border-brand-400 bg-brand-50 text-brand-700 font-medium shadow-sm"
-                    : "border-border text-muted-foreground hover:border-brand-300 hover:bg-muted"
-                }`}
-              >
-                {saving && category === c.value ? "…" : `${c.emoji} ${c.label}`}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return null;
+      )}
+    </div>
+  );
 }

@@ -6,7 +6,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
 import { Progress } from "@/components/ui/Progress";
 import { Separator } from "@/components/ui/Separator";
-import { ChecklistItem, MealLog } from "@/generated/prisma";
+import { MealLog } from "@/generated/prisma";
 import MealRow from "@/components/dashboard/MealRow";
 import { Flame, ChevronDown, ChevronUp } from "lucide-react";
 
@@ -17,6 +17,30 @@ const MEAL_LABELS: Record<string, { label: string; emoji: string }> = {
   lunch: { label: "Lunch", emoji: "☀️" },
   dinner: { label: "Dinner", emoji: "🌙" },
 };
+
+const DAY_PREFIXES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+function parseTaskLabel(label: string): { taskName: string; icon: string } {
+  for (const day of DAY_PREFIXES) {
+    if (label.startsWith(`${day} –`) || label.startsWith(`${day} -`)) {
+      const rest = label.slice(day.length).replace(/^[\s–—-]+/, "");
+      const iconMatch = rest.match(/\s+(\p{Emoji}|\p{Emoji_Presentation}|\p{Emoji_Modifier}|\p{Emoji_Modifier_Base}|\p{Emoji_Component})+$/u);
+      if (iconMatch) {
+        const icon = iconMatch[0].trim();
+        const name = rest.slice(0, -iconMatch[0].length).trim();
+        return { taskName: name, icon };
+      }
+      return { taskName: rest.trim(), icon: "" };
+    }
+  }
+  const iconMatch = label.match(/\s+(\p{Emoji}|\p{Emoji_Presentation}|\p{Emoji_Modifier}|\p{Emoji_Modifier_Base}|\p{Emoji_Component})+$/u);
+  if (iconMatch) {
+    const icon = iconMatch[0].trim();
+    const name = label.slice(0, -iconMatch[0].length).trim();
+    return { taskName: name, icon };
+  }
+  return { taskName: label, icon: "" };
+}
 
 interface TaskItem {
   id: string;
@@ -45,6 +69,7 @@ function TaskRow({ item, readOnly, onToggle }: {
   onToggle?: (id: string, done: boolean) => void;
 }) {
   const [localDone, setLocalDone] = useState(item.done);
+  const { taskName, icon } = parseTaskLabel(item.label);
 
   async function handleToggle() {
     const next = !localDone;
@@ -66,7 +91,7 @@ function TaskRow({ item, readOnly, onToggle }: {
     <button
       onClick={readOnly ? undefined : handleToggle}
       disabled={readOnly}
-      className={`w-full flex items-center gap-3 py-3 px-2 rounded-lg transition-all duration-200 ${
+      className={`w-full flex items-center gap-2.5 py-2 px-2 rounded-lg transition-all duration-200 ${
         readOnly ? "cursor-default opacity-60" : "cursor-pointer hover:bg-muted/50 active:scale-[0.98]"
       }`}
     >
@@ -84,8 +109,9 @@ function TaskRow({ item, readOnly, onToggle }: {
         )}
       </div>
       <span className={`text-sm text-left flex-1 ${localDone ? "line-through text-muted-foreground" : "text-foreground"}`}>
-        {item.label}
+        {taskName}
       </span>
+      {icon && <span className="text-base shrink-0">{icon}</span>}
     </button>
   );
 }
@@ -109,11 +135,17 @@ export default function UserCard({
   const done = items.filter((i) => i.done).length;
   const progress = items.length > 0 ? (done / items.length) * 100 : 0;
 
-  function getMealStatus(type: string): "done" | "pending" | "empty" {
+  function getMealStatus(type: string): "done" | "empty" {
     const entry = meals.find((m) => m.mealType === type);
     if (!entry) return "empty";
     return "done";
   }
+
+  const collapsedTasks = items.slice(0, 3).map((item) => {
+    const { taskName, icon } = parseTaskLabel(item.label);
+    return { ...item, taskName, icon };
+  });
+  const hasMore = items.length > 3;
 
   return (
     <Card className={`overflow-hidden ${accent === "brand" ? "border-brand-200" : "border-partner-200"}`}>
@@ -157,6 +189,30 @@ export default function UserCard({
               <Progress value={progress} variant={accent} size="sm" />
             </div>
 
+            {collapsedTasks.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {collapsedTasks.map((item) => (
+                  <span
+                    key={item.id}
+                    className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${
+                      item.done
+                        ? "bg-brand-100 text-brand-700 dark:bg-brand-900/30 dark:text-brand-300"
+                        : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    {item.icon && <span>{item.icon}</span>}
+                    <span>{item.taskName}</span>
+                    {item.done && <span>✓</span>}
+                  </span>
+                ))}
+                {hasMore && (
+                  <span className="text-xs text-muted-foreground px-2 py-0.5">
+                    +{items.length - 3} more
+                  </span>
+                )}
+              </div>
+            )}
+
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
               {MEAL_TYPES.map((type) => {
                 const meta = MEAL_LABELS[type];
@@ -173,11 +229,16 @@ export default function UserCard({
           </div>
         ) : (
           <div className="px-4 pb-4">
+            <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+              <span>Progress</span>
+              <span>{Math.round(progress)}%</span>
+            </div>
             <div className="mb-3">
               <Progress value={progress} variant={accent} size="sm" />
             </div>
 
-            <div className="space-y-0.5 mb-3">
+            <div className="bg-muted/40 rounded-lg p-2 shadow-sm border-b border-black/10 mb-3">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2 px-1">Activities</p>
               {items.length === 0 ? (
                 <p className="text-xs text-muted-foreground italic py-2 text-center">No tasks today</p>
               ) : (
@@ -187,10 +248,8 @@ export default function UserCard({
               )}
             </div>
 
-            <Separator className="my-3" />
-
-            <div>
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Meals</p>
+            <div className="bg-muted/40 rounded-lg p-2 shadow-sm border-b border-black/10">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2 px-1">Meals</p>
               <div className="space-y-2">
                 {MEAL_TYPES.map((type) => {
                   const entry = meals.find((m) => m.mealType === type) ?? null;
