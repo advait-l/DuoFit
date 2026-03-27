@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useState } from "react";
-import Image from "next/image";
 
 function proxyUrl(url: string): string {
   return `/api/image?url=${encodeURIComponent(url)}`;
@@ -40,7 +39,8 @@ export default function ImageUpload({ imageUrl, onUpload, onRemove, readOnly }: 
     return (
       <>
         <button onClick={() => setLightbox(true)} className="block mt-1.5">
-          <Image src={src} alt="attachment" width={120} height={80} className="rounded-lg object-cover w-full max-w-[120px] h-20" />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={src} alt="attachment" className="rounded-lg object-cover max-w-[120px] h-20 w-full" />
         </button>
         {lightbox && <Lightbox url={src} onClose={() => setLightbox(false)} />}
       </>
@@ -54,7 +54,8 @@ export default function ImageUpload({ imageUrl, onUpload, onRemove, readOnly }: 
       {src ? (
         <div className="relative inline-block">
           <button onClick={() => setLightbox(true)}>
-            <Image src={src} alt="attachment" width={120} height={80} className="rounded-lg object-cover w-full max-w-[120px] h-20" />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={src} alt="attachment" className="rounded-lg object-cover max-w-[120px] h-20 w-full" />
           </button>
           <button
             onClick={onRemove}
