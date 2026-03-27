@@ -36,6 +36,7 @@ function toDTO(item: ChecklistItem): ChecklistItemDTO {
     weekStart: item.weekStart.toISOString(),
     userId: item.userId,
     createdAt: item.createdAt.toISOString(),
+    imageUrl: item.imageUrl ?? null,
   };
 }
 
